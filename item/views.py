@@ -34,7 +34,6 @@ class UserEditView(generics.UpdateAPIView):
             status=status.HTTP_200_OK
         )
     
-    
 class UserDeleteView(generics.DestroyAPIView):
     permission_classes = (IsAuthenticated,)
     serializer = UserListSerializer
