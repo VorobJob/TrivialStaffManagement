@@ -1,27 +1,49 @@
-import uuid
-
+from .models import Subordination
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
+from .models import User
 from rest_framework.exceptions import ValidationError
-
-from item.models import User
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
     class Meta:
         model = User
-        fields = ("username", "password")
+        fields = ('username', 'password', 'ref_code')
 
-    def create(self, validated_data):
-        return User.objects.create_user(**validated_data, ref_code=uuid.uuid4())
+    def validate_password(self, password):
+        validate_password(password)
+        return password
 
-    def validate(self, attrs):
-        ref_code = self.context.get("ref_code")
-        if not ref_code or not User.objects.filter(ref_code=ref_code):
-            raise ValidationError({"error": "Неправильный реферальный код"})
-        return attrs
+    def create(self, validated_data: dict):
+        password = validated_data.pop('password')
+        user: User = super().create(validated_data)
+
+        try:
+            user.set_password(password)
+            user.save()
+            return user
+        except serializers.ValidationError as exc:
+            user.delete()
+            raise exc
+
+    def validate_ref_code(self, ref_code):
+        user = User.objects.filter(ref_code=ref_code)
+        if not user:
+            return ValidationError('Nety refcoda')
 
 
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "username", "ref_code")
+
+
+class SubordinateSerializer(serializers.ModelSerializer):
+    subordinate = UserListSerializer()
+    boss = UserListSerializer()
+
+    class Meta:
+        model = Subordination
+        fields = ("id", "subordinate", "boss")
